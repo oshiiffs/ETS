@@ -1,2 +1,8 @@
 # Production prediction and data processing use only the Python standard library.
 # Optional plotting can be added after verified observations support an evaluation.
+numpy>=1.26
+pandas>=2.0
+scikit-learn>=1.4
+joblib>=1.3
+matplotlib>=3.8
+# xgboost is optional; the trainer includes it automatically when installed.

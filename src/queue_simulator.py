@@ -6,6 +6,40 @@ The application must supply accurate busy durations and closures before using it
 from datetime import datetime
 
 
+def simulate_department_wait_seconds(queue_students, active_cashier_windows,
+                                     busy_cashier_states, service_time_predictor):
+    """Replay FIFO arrivals against per-window availability; return wait in seconds.
+
+    Queue entries are ordered students ahead. Each may carry department and
+    cashier_window. Busy state entries carry residual_seconds or elapsed_seconds.
+    Empty windows are available immediately. None means unavailable capacity.
+    """
+    if isinstance(active_cashier_windows, bool) or not isinstance(active_cashier_windows, int) or active_cashier_windows < 0:
+        raise ValueError("active_cashier_windows must be a nonnegative integer")
+    if active_cashier_windows == 0:
+        return None
+    states = list(busy_cashier_states or [])
+    if len(states) > active_cashier_windows:
+        raise ValueError("busy cashier states cannot exceed active windows")
+    slots = [0.0] * (active_cashier_windows - len(states))
+    for state in states:
+        if "residual_seconds" in state:
+            residual = float(state["residual_seconds"])
+        elif "elapsed_seconds" in state:
+            duration = float(state.get("estimated_service_seconds", 0.0))
+            residual = max(0.0, duration - float(state["elapsed_seconds"]))
+        else:
+            raise ValueError("busy state requires residual_seconds or elapsed_seconds")
+        if residual < 0: raise ValueError("busy residual time must be nonnegative")
+        slots.append(residual)
+    for student in queue_students:
+        slots.sort()
+        duration = float(service_time_predictor(student))
+        if duration < 0: raise ValueError("predicted service duration must be nonnegative")
+        slots[0] += duration
+    return float(min(slots))
+
+
 def simulate_wait_minutes(people_ahead: int, counters_open: int,
                           busy_elapsed_min: list[float],
                           minutes_until_open: float, service_min: float,
